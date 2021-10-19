@@ -11,7 +11,6 @@ logger.setLevel(logLevel)
 class BinanceSpotRest(BinanceREST):
     
     def get_exchange_info(self):
-        
         r = self.__send_public_request__('/api/v3/exchangeInfo')
         print(r)
         

@@ -49,7 +49,7 @@ class BinanceWsSpotMD(BinanceWS):
             try:
                 self.libros.index(msg_json.get('s'))
             except:
-                self.libros.append(msg_json.get('s'))
+                self.libros.append(msg_json.get('s'))                
             
             if msg_json.get('s') not in self.data:
                 self.data.update({msg_json.get('s'): {'lastUpdate':msg_json.get('u'),'Symbol': msg_json.get('s'),'Bid': msg_json.get('b'),'Ask': msg_json.get('a')} })
@@ -124,7 +124,7 @@ class BinanceWsFuturosMD(BinanceWS):
 
                 if msg_json.get('ps') not in self.data:
                     self.data.update({msg_json.get('ps'): {'lastUpdate':msg_json.get('u'),'Symbol': msg_json.get('s'),'Bid': msg_json.get('b'),'Ask': msg_json.get('a')} })
-                    logger.warning(f"{msg_json}\n{self.data}")
+                    logger.warning(f"FUTUROS : {self.data.keys()}")
             
                 if self.data[msg_json.get('ps')]['lastUpdate'] > msg_json.get('u'):
                     logger.error("Last Update del libro fallido")
