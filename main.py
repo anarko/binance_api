@@ -19,7 +19,7 @@ if __name__ == '__main__':
         
     logger.info(f"ENV : {ENV}")
     env_variables = config.getEnv(ENV)
-
+    
     s = Process(target=BinanceWsSpotMD, kwargs={**env_variables,'stream':"!bookTicker",'auto_start':True},
                         name='Spot'
                         )

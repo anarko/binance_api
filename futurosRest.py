@@ -10,6 +10,11 @@ logger.setLevel(config.logLevel)
 class BinanceFuturosREST(BinanceREST):
     def __init__(self, **kwargs):
         logger.debug("Iniciando FUTUROS...")
+        
+        kwargs['api_secret_rest'] = kwargs.get('futuros_api_secret_rest')
+        kwargs['api_key_rest'] = kwargs.get('futuros_api_key_rest')
+        kwargs['base_rest_url'] = kwargs.get('futuros_base_rest_url')
+        
         super(BinanceFuturosREST, self).__init__(**kwargs)
         '''
         self.getSymbols()
@@ -18,18 +23,18 @@ class BinanceFuturosREST(BinanceREST):
             self.changeMargin(s['symbol'])
         ''' 
     
-    def getSymbols(self):
+    def get_symbols(self):
         self.symbols = self.__send_public_request__('/dapi/v1/ticker/price')       
     
-    def changeLeverage(self,symbol,value=1):
+    def change_leverage(self,symbol,value=1):
         logger.debug(f"Cambiando leverage de {symbol} a {value}")
         r = self.__send_signed_request__('POST','/dapi/v1/leverage',payload={"symbol":symbol,"leverage":value})
     
-    def changeMargin(self,symbol,value="ISOLATED"):
+    def change_margin(self,symbol,value="ISOLATED"):
         logger.debug(f"Cambiando margin de {symbol} a {value}")
         r = self.__send_signed_request__('POST','/dapi/v1/marginType',payload={"symbol":symbol,"marginType":value})
     
-    def newOrder(self,order):
+    def new_order(self,order):
         tif = order.get_value('time_in_force') 
         if tif not in ("GTC","IOC","FOK","GTX"):
            tif = None
@@ -59,11 +64,11 @@ class BinanceFuturosREST(BinanceREST):
                 
         r = self.__send_signed_request__('POST','/dapi/v1/order',fFinal)
 
-    def cancelAllOrders(self,**params):
+    def cancel_all_orders(self,**params):
         r = self.__send_signed_request__('DELETE','/dapi/v1/allOpenOrders',{"symbol":params.get('symbol')})
         print(r)
     
-    def cancelOrder(self,**params):
+    def cancel_order(self,**params):
         orderToCancel = {}
         orderToCancel['symbol'] = params.get('symbol')
         if params.get('client_id'):
@@ -72,7 +77,7 @@ class BinanceFuturosREST(BinanceREST):
             orderToCancel['orderId'] = params.get('order_id')
         r = self.__send_signed_request__('DELETE','/dapi/v1/order',orderToCancel)
     
-    def getOpenOrders(self,**params):
+    def get_open_orders(self,**params):
         openOrders = []
         r = self.__send_signed_request__('GET','/dapi/v1/openOrders',{"symbol":params.get('symbol')})
         for o in r:
@@ -95,7 +100,7 @@ class BinanceFuturosREST(BinanceREST):
             openOrders.append(order)
         print(openOrders)
             
-    def getTrades(self,**params):
+    def get_trades(self,**params):
         trades = []
         r = bf.__send_signed_request__('GET','/dapi/v1/userTrades',{"symbol":params.get('symbol')})
         for t in r:
@@ -120,14 +125,20 @@ class BinanceFuturosREST(BinanceREST):
             trades.append(report)
         print(trades)
         
-    def getListenKey(self):
+    def get_listen_key(self):
         return self.__send_signed_request__('POST','/dapi/v1/listenKey')
     
-    def sendKeepAliveListenKey(self):
+    def send_keep_alive_listen_key(self):
         self.__send_signed_request__('PUT','/dapi/v1/listenKey')
     
-    def stopListenKey(self):
+    def stop_listenKey(self):
         self.__send_signed_request__('DELETE','/dapi/v1/listenKey')
+    
+    def get_exchange_info(self):
+        return self.__send_public_request__("/dapi/v1/exchangeInfo")
+
+    def get_commision_rate(self,**params):
+        return self.__send_signed_request__("GET","/dapi/v1/commissionRate",{"symbol":params.get('symbol')})
         
 
 if __name__ == '__main__':
@@ -135,8 +146,14 @@ if __name__ == '__main__':
     #key 755ff87c3150a309547ed946f197e468e5243d80dab4cc5ade3b134b82744757
     #secret a9574bfab710c70ec03f30ff1d278c26391231c32e7b995a804234c7f77b0e60
     
+    #SPOT TEST
+    #KEY = '3VXKp7iG3eMiK89W7xU2U5zhZCW02LTtK4CVKxiI7By38CCu5fTvyLLWpKNbQZl8'
+    #SECRET = 'L1w6RHF7FJZTL6H28esLfnr6XffLqRz4IJeAoPyse76tMEQeUyxcXqCwSlquUHw7'
+    #BASE_URL = 'https://api.binance.com' # production base url
+    #BASE_URL = 'https://testnet.binance.vision' # testnet base url
+    
     bf = BinanceFuturosREST(base_rest_url = 'https://testnet.binancefuture.com', key='755ff87c3150a309547ed946f197e468e5243d80dab4cc5ade3b134b82744757',secret = 'a9574bfab710c70ec03f30ff1d278c26391231c32e7b995a804234c7f77b0e60')
-    print(bf.__send_public_request__("/dapi/v1/ticker/bookTicker"))
+    print(bf.__send_public_request__("/dapi/v1/exchangeInfo"))
     
     '''
     o  = Orden(

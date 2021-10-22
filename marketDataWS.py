@@ -6,6 +6,7 @@ import time
 
 from binanceBase import BinanceWS
 from futurosRest import BinanceFuturosREST
+from spotRest import BinanceSpotRest
 
 logger = logging.getLogger("Binance-WS")
 logger.setLevel(config.logLevel)
@@ -17,10 +18,15 @@ class BinanceWsSpotMD(BinanceWS):
         logger.warning("Iniciando SPOT MD")
         self.libros = []
         self.lastUID = 0
-        self.data = {}        
+        self.data = {}
+        self.spotRest = BinanceSpotRest(**kwargs)
+        self.__get_fees__()
         kwargs['url'] = kwargs.get('ws_spot_md')
         super(BinanceWsSpotMD, self).__init__(**kwargs)
         
+    def __get_fees__(self):
+        r = self.spotRest.get_account_info()
+        self.account_fees = {'makerCommission': r.get('makerCommission'), 'takerCommission': r.get('takerCommission'), 'buyerCommission': r.get('buyerCommission'), 'sellerCommission': r.get('sellerCommission')}           
 
     def on_message(self, ws, msg):
         '''
@@ -69,12 +75,16 @@ class BinanceWsSpotMD(BinanceWS):
                                             'Book': msg_json.get('s'),
                                             'Symbol': msg_json.get('s'),
                                             'Bid': msg_json.get('b'),
+                                            'CantBid': msg_json.get('B'),
                                             'Ask': msg_json.get('a'),
+                                            'CantAsk': msg_json.get('A'),
+                                            **self.account_fees                                          
                                             }
                                     }
-            
-            if msg_to_core is not None:                
-                self.__send_pika__(msg_to_core)                
+
+            if msg_to_core is not None:
+                logger.warning(" "*50+f"SPOT {msg_to_core['Body']['Symbol']}")      
+                self.__send_pika__(msg_to_core)
                     
         except Exception as e:
             logger.error(e,exc_info=True)
@@ -86,11 +96,18 @@ class BinanceWsFuturosMD(BinanceWS):
     def __init__(self, **kwargs):        
         logger.warning("Iniciando FUTUROS MD")
         self.lastUID = 0
-        self.libros = []
-        self.data = {}        
+        self.data = {}
+        self.futuros_fees = {}
+        self.restFuturos = BinanceFuturosREST(**kwargs)
+        self.__get_futuros_fee__()
         kwargs['url'] = kwargs.get('ws_futuros_md')
         super(BinanceWsFuturosMD, self).__init__(**kwargs)
-
+    
+    def __get_futuros_fee__(self):        
+        symbols = self.restFuturos.get_exchange_info()
+        for s in symbols['symbols']:
+            self.futuros_fees[s['symbol']] = s['liquidationFee']
+            
     def on_message(self, ws, msg):
         '''
         {"u":235763753287,"e":"bookTicker","s":"BTCUSD_211231","ps":"BTCUSD","b":"57031.4","B":"688","a":"57031.5","A":"1316","T":1634072047318,"E":1634072047321}
@@ -116,14 +133,10 @@ class BinanceWsFuturosMD(BinanceWS):
                 if msg_json.get('s').find("PERP") >0 :
                     #Descarto los perpetuos
                     return
-                
-                try:
-                    self.libros.index(msg_json.get('ps'))
-                except:
-                    self.libros.append(msg_json.get('ps'))
 
                 if msg_json.get('ps') not in self.data:
-                    self.data.update({msg_json.get('ps'): {'lastUpdate':msg_json.get('u'),'Symbol': msg_json.get('s'),'Bid': msg_json.get('b'),'Ask': msg_json.get('a')} })
+                    r = self.restFuturos.get_commision_rate(symbol=msg_json.get('s'))                    
+                    self.data.update({msg_json.get('ps'): {'lastUpdate':msg_json.get('u'),'Symbol': msg_json.get('s'),'Bid': msg_json.get('b'),'Ask': msg_json.get('a'), 'makerCommissionRate':r.get('makerCommissionRate'),'takerCommissionRate':r.get('takerCommissionRate') } })
                     logger.warning(f"FUTUROS : {self.data.keys()}")
             
                 if self.data[msg_json.get('ps')]['lastUpdate'] > msg_json.get('u'):
@@ -141,11 +154,17 @@ class BinanceWsFuturosMD(BinanceWS):
                                                 'Book': msg_json.get('ps'),
                                                 'Symbol': msg_json.get('s'),
                                                 'Bid': msg_json.get('b'),
+                                                'CantBid': msg_json.get('B'),
                                                 'Ask': msg_json.get('a'),
+                                                'CantAsk': msg_json.get('A'),
+                                                'LiquidationFee':self.futuros_fees[msg_json.get('s')],
+                                                'makerCommissionRate':self.data.get(msg_json.get('ps')).get('makerCommissionRate'),
+                                                'takerCommissionRate':self.data.get(msg_json.get('ps')).get('takerCommissionRate')
                                                 }
                                         }  
                
                 if msg_to_core is not None:
+                    logger.warning(f"FUT {msg_to_core['Body']['Symbol']}")
                     self.__send_pika__(msg_to_core)
             else : 
                 logger.warning(f"FUT : {msg_json}")

@@ -11,17 +11,22 @@ if sys.platform != 'win32':
 	coloredlogs.install( level=logLevel, fmt=LOG_FORMATTER_SRT)
 
 # TESTNET BASE REST ENDPOINT
-BASE_REST_URL_TESTNET = 'https://testnet.binancefuture.com'
-API_KEY_TESTNET ='755ff87c3150a309547ed946f197e468e5243d80dab4cc5ade3b134b82744757'
-API_SECRET_TESTNET = 'a9574bfab710c70ec03f30ff1d278c26391231c32e7b995a804234c7f77b0e60'
-# TESTNET WEBSOCKET FUTUROS
-WS_FUTUROS_MD_TESTNET_USD_M = "wss://fstream.binancefuture.com/ws"
-WS_FUTUROS_MD_TESTNET_COIN_M = "wss://dstream.binancefuture.com/ws"
+FUTUROS_REST_URL_TESTNET = 'https://testnet.binancefuture.com'
+FUTUROS_API_KEY_REST_TESTNET ='755ff87c3150a309547ed946f197e468e5243d80dab4cc5ade3b134b82744757'
+FUTUROS_API_SECRET_REST_TESTNET = 'a9574bfab710c70ec03f30ff1d278c26391231c32e7b995a804234c7f77b0e60'
+
+SPOT_API_KEY_REST_TESTNET = "CGz2CC3WXWEYsAvRR5UJTsxvqZRXCR3HCAKtzr8QGXEqBhSmTP6OBfeDWjilHyUf"
+SPOT_API_SECRET_TESTNET = "gHcQLqySIwJDXoVm2BU0qknjNS3EqFwms8IHR6UZqvk0C27bYRwtvoXDYv2bOxGn"
+SPOT_REST_URL_TESTNET = 'https://testnet.binance.vision'
+
+# WEB SOCKET
+FUTUROS_WS_MD_USD_M_TESTNET = "wss://fstream.binancefuture.com/ws"
+FUTUROS_WS_MD_COIN_M_TESTNET = "wss://dstream.binancefuture.com/ws"
 
 # PRODUCCION ENDPOINTS
-WS_FUTUROS_MD_PRODUCCION_USD_M = "wss://fstream.binance.com/ws" #USD-M
-WS_FUTUROS_MD_PRODUCCION_COIN_M = "wss://dstream.binance.com/ws" #COIN-M
-WS_SPOT_MD_PRODUCCION = "wss://stream.binance.com:9443/ws"                         
+FUTUROS_WS_FUTUROS_MD_USD_M_PRODUCCION = "wss://fstream.binance.com/ws" #USD-M
+FUTUROS_WS_FUTUROS_MD_COIN_M_PRODUCCION = "wss://dstream.binance.com/ws" #COIN-M
+FUTUROS_WS_SPOT_MD_PRODUCCION = "wss://stream.binance.com:9443/ws"                         
 
 #RABBIT CONFIGS
 PIKA_USER = 'algo203'
@@ -36,11 +41,14 @@ PIKA_URL = f'amqp://{PIKA_USER}:{PIKA_PASSWORD}@{PIKA_HOST}:{PIKA_PORT}/%2F?conn
 def getEnv(env):
     env_vars = {}
     if env=="DESARROLLO":
-        env_vars['ws_futuros_md'] = WS_FUTUROS_MD_PRODUCCION_COIN_M
-        env_vars['ws_spot_md'] = WS_SPOT_MD_PRODUCCION
-        env_vars['base_rest_url'] = BASE_REST_URL_TESTNET
-        env_vars['api_key_rest'] = API_KEY_TESTNET
-        env_vars['api_secret_rest'] = API_SECRET_TESTNET
+        env_vars['ws_futuros_md'] = FUTUROS_WS_FUTUROS_MD_COIN_M_PRODUCCION
+        env_vars['ws_spot_md'] = FUTUROS_WS_SPOT_MD_PRODUCCION
+        env_vars['futuros_base_rest_url'] = FUTUROS_REST_URL_TESTNET
+        env_vars['futuros_api_key_rest'] = FUTUROS_API_KEY_REST_TESTNET
+        env_vars['futuros_api_secret_rest'] = FUTUROS_API_SECRET_REST_TESTNET
+        env_vars['spot_base_rest_url'] = SPOT_REST_URL_TESTNET
+        env_vars['spot_api_key_rest'] = SPOT_API_KEY_REST_TESTNET
+        env_vars['spot_api_secret_rest'] = SPOT_API_SECRET_TESTNET
         env_vars['rabbit_url'] = PIKA_URL
         env_vars['rabbit_exchange'] = PIKA_EXCHANGE
         env_vars['rabbit_routing_key'] = PIKA_ROUTING_KEY_OUT

@@ -66,11 +66,11 @@ class BinanceWS(object):
                 
     def on_error(self, ws, error):
         logger.error(f'WebSocket Error {error} | Reconectando',exc_info=True)        
-        #self.__connect_to_binance__()
+        self.__connect_to_binance__()
 
     def on_close(self, ws,tres,cuatro):
         logger.error("WEB SOCKET CLOSED",exc_info=True)        
-        #self.__connect_to_binance__()
+        self.__connect_to_binance__()
 
     def on_open(self, ws):
         ws.send(json.dumps({'method': 'SUBSCRIBE','params': [f'{self.stream}'],'id':1}))
@@ -88,7 +88,7 @@ class BinanceREST(object):
     def __hashing__(self,query_string):
         return hmac.new(self.api_secret_rest.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256).hexdigest()
 
-    def __get_timestamp__():
+    def __get_timestamp__(self):
         return int(time.time() * 1000)
 
     def __dispatch_request__(self,http_method):
@@ -111,11 +111,12 @@ class BinanceREST(object):
             query_string = "{}&timestamp={}".format(query_string, self.__get_timestamp__())
         else:
             query_string = 'timestamp={}'.format(self.__get_timestamp__())
-
+        
         url = self.base_rest_url + url_path + '?' + query_string + '&signature=' + self.__hashing__(query_string)
-        print("{} {}".format(http_method, url))
+        
         params = {'url': url, 'params': {}}
         response =self.__dispatch_request__(http_method)(**params)
+        print(f"e  =  {response}")
         return response.json()
 
     # used for sending public data request

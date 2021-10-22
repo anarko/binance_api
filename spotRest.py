@@ -10,9 +10,18 @@ logger.setLevel(logLevel)
 
 class BinanceSpotRest(BinanceREST):
     
+    def __init__(self,**kwargs):
+        kwargs['api_secret_rest'] = kwargs.get('spot_api_secret_rest')
+        kwargs['api_key_rest'] = kwargs.get('spot_api_key_rest')
+        kwargs['base_rest_url'] = kwargs.get('spot_base_rest_url')
+        super(BinanceSpotRest, self).__init__(**kwargs)
+            
     def get_exchange_info(self):
         r = self.__send_public_request__('/api/v3/exchangeInfo')
         print(r)
+        
+    def get_account_info(self):
+        return self.__send_signed_request__('GET','/api/v3/account')
         
     def __get_trades__(self,**params):
         orders = []
@@ -89,5 +98,11 @@ if __name__ == '__main__':
     #key 755ff87c3150a309547ed946f197e468e5243d80dab4cc5ade3b134b82744757
     #secret a9574bfab710c70ec03f30ff1d278c26391231c32e7b995a804234c7f77b0e60
     
-    bf = BinanceSpotRest(base_url = 'https://binance.com', key='755ff87c3150a309547ed946f197e468e5243d80dab4cc5ade3b134b82744757',secret = 'a9574bfab710c70ec03f30ff1d278c26391231c32e7b995a804234c7f77b0e60')
-    print(bf.__send_public_request__("/api/v3/ticker/bookTicker?symbol=BTCUSD"))
+    #SPOT TEST
+    #API Key: CGz2CC3WXWEYsAvRR5UJTsxvqZRXCR3HCAKtzr8QGXEqBhSmTP6OBfeDWjilHyUf
+    #Secret Key: gHcQLqySIwJDXoVm2BU0qknjNS3EqFwms8IHR6UZqvk0C27bYRwtvoXDYv2bOxGn
+    #BASE_URL = 'https://testnet.binance.vision' # testnet base url    
+    
+    bf = BinanceSpotRest(base_rest_url = 'https://testnet.binance.vision', api_key_rest='CGz2CC3WXWEYsAvRR5UJTsxvqZRXCR3HCAKtzr8QGXEqBhSmTP6OBfeDWjilHyUf',api_secret_rest='gHcQLqySIwJDXoVm2BU0qknjNS3EqFwms8IHR6UZqvk0C27bYRwtvoXDYv2bOxGn')
+    print(bf.get_account_info())
+    #bf.get_trade_fee()
