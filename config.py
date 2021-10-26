@@ -35,7 +35,9 @@ PIKA_PORT = 5672
 PIKA_HOST = "192.168.1.186"
 PIKA_EXCHANGE = "exchange_gui_crypto_futuros"
 PIKA_ROUTING_KEY_OUT = 'WEB.CRYPTO_FUTUROS_CORE.Crypto_Futuros.MD'
+PIKA_QUEUE_OUT = "queue_in_core_futuros"
 PIKA_URL = f'amqp://{PIKA_USER}:{PIKA_PASSWORD}@{PIKA_HOST}:{PIKA_PORT}/%2F?connection_attempts=3&heartbeat=30'
+
 
 
 def getEnv(env):
@@ -52,5 +54,6 @@ def getEnv(env):
         env_vars['rabbit_url'] = PIKA_URL
         env_vars['rabbit_exchange'] = PIKA_EXCHANGE
         env_vars['rabbit_routing_key'] = PIKA_ROUTING_KEY_OUT
+        env_vars['rabbit_queue_out'] = PIKA_QUEUE_OUT
     
     return env_vars

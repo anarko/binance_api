@@ -4,6 +4,7 @@ import config
 import json
 import time 
 
+from multiprocessing import Process
 from binanceBase import BinanceWS
 from futurosRest import BinanceFuturosREST
 from spotRest import BinanceSpotRest
@@ -15,53 +16,34 @@ class BinanceWsSpotMD(BinanceWS):
     
     def __init__(self, **kwargs):        
         
-        logger.warning("Iniciando SPOT MD")
-        self.libros = []
+        logger.warning(f"Iniciando SPOT MD {kwargs.get('stream')}")
         self.lastUID = 0
         self.data = {}
         self.spotRest = BinanceSpotRest(**kwargs)
         self.__get_fees__()
-        kwargs['url'] = kwargs.get('ws_spot_md')
+        kwargs['url'] = kwargs.get('ws_spot_md')        
         super(BinanceWsSpotMD, self).__init__(**kwargs)
+        self.auto_reconnect = True
         
     def __get_fees__(self):
         r = self.spotRest.get_account_info()
         self.account_fees = {'makerCommission': r.get('makerCommission'), 'takerCommission': r.get('takerCommission'), 'buyerCommission': r.get('buyerCommission'), 'sellerCommission': r.get('sellerCommission')}           
 
     def on_message(self, ws, msg):
-        '''
-        {"u":235763753287,"e":"bookTicker","s":"BTCUSD_211231","ps":"BTCUSD","b":"57031.4","B":"688","a":"57031.5","A":"1316","T":1634072047318,"E":1634072047321}
-        {
-            "e":"bookTicker",         // Event type
-            "u":17242169,             // Order book update Id
-            "s":"BTCUSD_200626",      // Symbol
-            "ps":"BTCUSD",            // Pair
-            "b":"9548.1",             // Best bid price
-            "B":"52",                 // Best bid qty
-            "a":"9548.5",             // Best ask price
-            "A":"11",                 // Best ask qty
-            "T":1591268628155,        // Transaction time
-            "E":1591268628166         // Event time
-            }
-        '''        
+    
         try:            
             msg_to_core = None
             msg_json = json.loads(msg)
             
             if msg_json.get('s') is None: 
-                logger.warning(f"SPOT : {msg_json}")
-                return
-            
-            try:
-                self.libros.index(msg_json.get('s'))
-            except:
-                self.libros.append(msg_json.get('s'))                
+                #logger.warning(f"SPOT : {msg_json}")
+                return              
             
             if msg_json.get('s') not in self.data:
                 self.data.update({msg_json.get('s'): {'lastUpdate':msg_json.get('u'),'Symbol': msg_json.get('s'),'Bid': msg_json.get('b'),'Ask': msg_json.get('a')} })
             
             if self.data[msg_json.get('s')]['lastUpdate'] > msg_json.get('u'):
-                logger.error("Last Update del libro fallido")
+                logger.error(f"Last Update del libro fallido {msg_json.get('s')}")
                 return
                            
             if self.data[msg_json.get('s')].get('Bid') != msg_json.get('b') or self.data[msg_json.get('s')].get('Ask') != msg_json.get('a'):                    
@@ -83,7 +65,7 @@ class BinanceWsSpotMD(BinanceWS):
                                     }
 
             if msg_to_core is not None:
-                logger.warning(" "*50+f"SPOT {msg_to_core['Body']['Symbol']}")      
+                #logger.warning(" "*50+f"SPOT {msg_to_core['Body']['Symbol']}")
                 self.__send_pika__(msg_to_core)
                     
         except Exception as e:
@@ -99,15 +81,34 @@ class BinanceWsFuturosMD(BinanceWS):
         self.data = {}
         self.futuros_fees = {}
         self.restFuturos = BinanceFuturosREST(**kwargs)
+        self.envars = kwargs
         self.__get_futuros_fee__()
-        kwargs['url'] = kwargs.get('ws_futuros_md')
+        kwargs['url'] = kwargs.get('ws_futuros_md')       
+        self.time_to_check = time.time()
         super(BinanceWsFuturosMD, self).__init__(**kwargs)
-    
+        self.auto_reconnect = True    
+        
     def __get_futuros_fee__(self):        
         symbols = self.restFuturos.get_exchange_info()
         for s in symbols['symbols']:
             self.futuros_fees[s['symbol']] = s['liquidationFee']
-            
+
+    def check_process_run(self):
+        for book in self.data:
+            try:
+                if not self.data[book]['spot_process'].is_alive():
+                    stream = self.data[book]['spot_process'].name
+                    self.data[book]['spot_process'].kill()
+                    logger.warning(f"Reiniciando {stream}")
+                    p = Process(target=BinanceWsSpotMD, kwargs={**self.envars,'stream':stream,'auto_start':True},
+                        name=stream
+                        )
+                    p.start()
+                    self.data[book]['spot_process'] = p
+            except Exception as e:
+                logger.warning(f"{e}")
+                    
+        
     def on_message(self, ws, msg):
         '''
         {"u":235763753287,"e":"bookTicker","s":"BTCUSD_211231","ps":"BTCUSD","b":"57031.4","B":"688","a":"57031.5","A":"1316","T":1634072047318,"E":1634072047321}
@@ -134,13 +135,23 @@ class BinanceWsFuturosMD(BinanceWS):
                     #Descarto los perpetuos
                     return
 
+                if time.time()-self.time_to_check > 30 :                     
+                    self.time_to_check = time.time()
+                    self.check_process_run()
+
                 if msg_json.get('ps') not in self.data:
                     r = self.restFuturos.get_commision_rate(symbol=msg_json.get('s'))                    
                     self.data.update({msg_json.get('ps'): {'lastUpdate':msg_json.get('u'),'Symbol': msg_json.get('s'),'Bid': msg_json.get('b'),'Ask': msg_json.get('a'), 'makerCommissionRate':r.get('makerCommissionRate'),'takerCommissionRate':r.get('takerCommissionRate') } })
-                    logger.warning(f"FUTUROS : {self.data.keys()}")
-            
+                    #logger.warning(f"FUTUROS : {self.data.keys()} Iniciando SPOT de {msg_json.get('ps')}")
+                    pair_book = msg_json.get('ps').replace('USD','USDT').lower()
+                    p = Process(target=BinanceWsSpotMD, kwargs={**self.envars,'stream':f"{pair_book}@bookTicker",'auto_start':True},
+                        name=f"{pair_book}@bookTicker"
+                        )
+                    p.start()
+                    self.data[msg_json.get('ps')]['spot_process'] = p                    
+                                
                 if self.data[msg_json.get('ps')]['lastUpdate'] > msg_json.get('u'):
-                    logger.error("Last Update del libro fallido")
+                    logger.error(f"Last Update del libro fallido {msg_json.get('ps')}")
                     return
                 
                 if self.data[msg_json.get('ps')].get('Bid') != msg_json.get('b') or self.data[msg_json.get('ps')].get('Ask') != msg_json.get('a'):                    
@@ -164,13 +175,28 @@ class BinanceWsFuturosMD(BinanceWS):
                                         }  
                
                 if msg_to_core is not None:
-                    logger.warning(f"FUT {msg_to_core['Body']['Symbol']}")
+                    #logger.warning(f"FUT {msg_to_core['Body']['Symbol']}")
                     self.__send_pika__(msg_to_core)
             else : 
                 logger.warning(f"FUT : {msg_json}")
                        
         except Exception as e:
             logger.error(e)
+
+    def on_error(self, ws, error):
+        self.__kill_spot_process__()
+        super(BinanceWsFuturosMD, self).on_error( ws,error)
+
+    def on_close(self, ws,tres,cuatro):
+        self.__kill_spot_process__()
+        super(BinanceWsFuturosMD, self).on_close( ws,tres,cuatro)
+
+    def __kill_spot_process__(self):
+        for book in self.data:
+            try:
+                self.data[book]['spot_process'].kill()
+            except Exception as e:
+                logger.warning(f"{e}")
 
 class BinanceWsFuturosUserData(BinanceWS):
     

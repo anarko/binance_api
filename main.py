@@ -1,5 +1,5 @@
 from multiprocessing import Process
-import logging
+import logging  
 import config
 import sys
 
@@ -19,11 +19,12 @@ if __name__ == '__main__':
         
     logger.info(f"ENV : {ENV}")
     env_variables = config.getEnv(ENV)
-    
-    s = Process(target=BinanceWsSpotMD, kwargs={**env_variables,'stream':"!bookTicker",'auto_start':True},
+    '''
+    s = Process(target=BinanceWsSpotMD, kwargs={**env_variables,'stream':"bnbusdt@bookTicker",'auto_start':True},
                         name='Spot'
                         )
     s.start()
+    '''
     
     f = Process(target=BinanceWsFuturosMD, kwargs={**env_variables,'stream':"!bookTicker",'auto_start':True},
                         name='Fut'
